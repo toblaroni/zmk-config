@@ -1,0 +1,163 @@
+/*
+ * Copyright (c) 2020 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+#include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/rgb.h>
+#include <dt-bindings/zmk/outputs.h>
+
+#define DEF   0
+#define LOWER 1
+#define RAISE 2
+#define ADJ   3
+
+/ {
+        sensors {
+                compatible = "zmk,keymap-sensors";
+                sensors = <&left_encoder &right_encoder>;
+                triggers-per-rotation = <20>;
+        };
+};
+
+&led_strip {
+        chain-length = <27>;
+};
+
+&nice_view_spi {
+        cs-gpios = <&pro_micro 8 GPIO_ACTIVE_HIGH>;
+};
+
+/* ---------------------------------------------------------------------------
+ * Macros for common multi-character operators
+ * ------------------------------------------------------------------------ */
+/ {
+        macros {
+                m_arrow: m_arrow {            // ->
+                        compatible = "zmk,behavior-macro";
+                        #binding-cells = <0>;
+                        bindings = <&kp MINUS &kp GT>;
+                };
+                m_fat_arrow: m_fat_arrow {    // =>
+                        compatible = "zmk,behavior-macro";
+                        #binding-cells = <0>;
+                        bindings = <&kp EQUAL &kp GT>;
+                };
+                m_neq: m_neq {                // !=
+                        compatible = "zmk,behavior-macro";
+                        #binding-cells = <0>;
+                        bindings = <&kp EXCL &kp EQUAL>;
+                };
+                m_eqeq: m_eqeq {              // ==
+                        compatible = "zmk,behavior-macro";
+                        #binding-cells = <0>;
+                        bindings = <&kp EQUAL &kp EQUAL>;
+                };
+                m_scope: m_scope {            // ::
+                        compatible = "zmk,behavior-macro";
+                        #binding-cells = <0>;
+                        bindings = <&kp COLON &kp COLON>;
+                };
+        };
+
+        /* Press both Shift keys together to enable Caps Word (SNAKE_CASE_CONSTANTS etc.)
+         * Key positions: row 1 = 0-11, row 2 = 12-23, row 3 = 24-35, thumbs = 36-41 */
+        combos {
+                compatible = "zmk,combos";
+                combo_caps_word {
+                        timeout-ms = <50>;
+                        key-positions = <24 35>;
+                        bindings = <&caps_word>;
+                };
+        };
+
+        /* Hold LOWER + RAISE together to get the ADJUST layer */
+        conditional_layers {
+                compatible = "zmk,conditional-layers";
+                tri_layer {
+                        if-layers = <LOWER RAISE>;
+                        then-layer = <ADJ>;
+                };
+        };
+
+        keymap {
+                compatible = "zmk,keymap";
+
+                default_layer {
+                                // -----------------------------------------------------------------------------------------
+                                // |  TAB |  Q  |  W  |  E  |  R  |  T  |   |  Y  |  U   |  I  |  O  |  P  | BKSP |
+                                // |CTL/ES|  A  |  S  |  D  |  F  |  G  |   |  H  |  J   |  K  |  L  |  ;  |  '   |
+                                // | SHFT |  Z  |  X  |  C  |  V  |  B  |   |  N  |  M   |  ,  |  .  |  /  | SHFT |
+                                //                    | GUI | LWR | SPC |   | ENT | RSE  | ALT |
+                        bindings = <
+                                &kp TAB       &kp Q &kp W &kp E &kp R &kp T   &kp Y &kp U  &kp I     &kp O   &kp P    &kp BSPC
+                                &mt LCTRL ESC &kp A &kp S &kp D &kp F &kp G   &kp H &kp J  &kp K     &kp L   &kp SEMI &kp SQT
+                                &kp LSHFT     &kp Z &kp X &kp C &kp V &kp B   &kp N &kp M  &kp COMMA &kp DOT &kp FSLH &kp RSHFT
+                                                      &kp LGUI &mo LOWER &kp SPACE   &kp RET &mo RAISE &kp RALT
+                        >;
+                        sensor-bindings = <
+                                &inc_dec_kp C_VOL_UP C_VOL_DN
+                                &inc_dec_kp PG_UP PG_DN
+                        >;
+                };
+
+                lower_layer {
+                                // Numbers, vim-style arrows, navigation and function keys
+                                // -----------------------------------------------------------------------------------------
+                                // |  TAB |  1  |  2  |  3  |  4  |  5  |   |  6  |  7   |  8  |  9  |  0  | BKSP |
+                                // | CTRL | F1  | F2  | F3  | F4  | F5  |   |  <  |  v   |  ^  |  >  | HOME| END  |
+                                // | SHFT | F6  | F7  | F8  | F9  | F10 |   | PGDN| PGUP | F11 | F12 | INS | DEL  |
+                                //                    | GUI |     | SPC |   | ENT |      | ALT |
+                        bindings = <
+                                &kp TAB   &kp N1  &kp N2  &kp N3  &kp N4  &kp N5    &kp N6    &kp N7    &kp N8  &kp N9    &kp N0   &kp BSPC
+                                &kp LCTRL &kp F1  &kp F2  &kp F3  &kp F4  &kp F5    &kp LEFT  &kp DOWN  &kp UP  &kp RIGHT  &kp HOME &kp END
+                                &kp LSHFT &kp F6  &kp F7  &kp F8  &kp F9  &kp F10   &kp PG_DN &kp PG_UP &kp F11 &kp F12    &kp INS  &kp DEL
+                                                           &kp LGUI &trans &kp SPACE   &kp RET &trans &kp RALT
+                        >;
+                        sensor-bindings = <
+                                &inc_dec_kp LC(PG_DN) LC(PG_UP)
+                                &inc_dec_kp RIGHT LEFT
+                        >;
+                };
+
+                raise_layer {
+                                // Symbols: brackets on the right home row, operators on the left
+                                // -----------------------------------------------------------------------------------------
+                                // |  TAB |  !  |  @  |  #  |  $  |  %  |   |  ^  |  &   |  *  |  -  |  =  | BKSP |
+                                // | CTRL |  `  |  ~  |  |  |  \  |  :  |   |  [  |  (   |  )  |  ]  |  _  |  +   |
+                                // | SHFT |  -> |  => |  != |  == |  :: |   |  {  |  <   |  >  |  }  |  ?  |      |
+                                //                    | GUI |     | SPC |   | ENT |      | ALT |
+                        bindings = <
+                                &kp TAB    &kp EXCL    &kp AT         &kp HASH   &kp DLLR   &kp PRCNT    &kp CARET &kp AMPS &kp STAR &kp MINUS &kp EQUAL &kp BSPC
+                                &kp LCTRL  &kp GRAVE   &kp TILDE      &kp PIPE   &kp BSLH   &kp COLON    &kp LBKT  &kp LPAR &kp RPAR &kp RBKT  &kp UNDER &kp PLUS
+                                &kp LSHFT  &m_arrow    &m_fat_arrow   &m_neq     &m_eqeq    &m_scope     &kp LBRC  &kp LT   &kp GT   &kp RBRC  &kp QMARK &trans
+                                                                 &kp LGUI &trans &kp SPACE   &kp RET &trans &kp RALT
+                        >;
+                        sensor-bindings = <
+                                &inc_dec_kp C_BRI_UP C_BRI_DN
+                                &inc_dec_kp LC(EQUAL) LC(MINUS)
+                        >;
+                };
+
+                adjust_layer {
+                                // Hold LOWER + RAISE: Bluetooth, output, RGB and firmware
+                                // -----------------------------------------------------------------------------------------
+                                // | BTCLR| BT1 | BT2 | BT3 | BT4 | BT5 |   |TOG  | EFF  | EFR | HUI | HUD |      |
+                                // |      | USB | BLE | TOG |     |     |   | SAI | SAD  | BRI | BRD | SPI | SPD  |
+                                // |RESET |     |     |     |     |     |   |     |      |     |     |     | BOOT |
+                        bindings = <
+                                &bt BT_CLR   &bt BT_SEL 0   &bt BT_SEL 1  &bt BT_SEL 2  &bt BT_SEL 3  &bt BT_SEL 4     &rgb_ug RGB_TOG &rgb_ug RGB_EFF &rgb_ug RGB_EFR &rgb_ug RGB_HUI &rgb_ug RGB_HUD &trans
+                                &trans       &out OUT_USB   &out OUT_BLE &out OUT_TOG &trans        &trans           &rgb_ug RGB_SAI &rgb_ug RGB_SAD &rgb_ug RGB_BRI &rgb_ug RGB_BRD &rgb_ug RGB_SPI &rgb_ug RGB_SPD
+                                &sys_reset   &trans         &trans        &trans        &trans        &trans           &trans           &trans          &trans          &trans          &trans          &bootloader
+                                                                          &trans &trans &trans   &trans &trans &trans
+                        >;
+                        sensor-bindings = <
+                                &inc_dec_kp C_VOL_UP C_VOL_DN
+                                &inc_dec_kp PG_UP PG_DN
+                        >;
+                };
+        };
+};
